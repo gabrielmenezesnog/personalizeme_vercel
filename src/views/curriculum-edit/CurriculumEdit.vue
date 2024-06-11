@@ -15,6 +15,7 @@ import { email, required } from "@vuelidate/validators";
 import html2pdf from "html2pdf.js";
 import { iFormValues } from "../../interfaces/iFormValues";
 import { useRoute } from "vue-router";
+import { iErrorMessage } from "../../interfaces/iErrorMessage";
 
 defineProps<{
   id?: string;
@@ -51,6 +52,11 @@ const formValues = ref<iFormValues>({
   },
 });
 
+const errorMessages: iErrorMessage = {
+  required: "Este campo é obrigatório",
+  email: "Por favor, insira um e-mail válido",
+};
+
 const rules = {
   personalData: {
     firstName: { required },
@@ -79,6 +85,35 @@ const rules = {
 
 let validator = useVuelidate(rules, formValues);
 
+const getErrorMessage = (fieldPath: any) => {
+  const field = fieldPath
+    .split(".")
+    .reduce((acc: any, part: any) => acc && acc[part], validator.value);
+
+  if (!field) return "";
+
+  if (field.$pending) return "";
+
+  if (field.$errors && field.$errors.length > 0) {
+    if (
+      field.$errors.some(
+        (error: { $validator: string }) => error.$validator === "required"
+      )
+    ) {
+      return errorMessages.required;
+    }
+    if (
+      field.$errors.some(
+        (error: { $validator: string }) => error.$validator === "email"
+      )
+    ) {
+      return errorMessages.email;
+    }
+  }
+
+  return "";
+};
+
 const route = useRoute();
 
 const formId = ref<string | string[]>("");
@@ -105,6 +140,8 @@ const validate = async () => {
   validator.value.$validate();
   if (validator.value.$errors.length === 0) {
     await postData();
+
+    router.push("/");
   }
 };
 
@@ -176,6 +213,7 @@ const generatePDF = async () => {
             placeholder="email@contato.com"
             v-model="formValues.personalData.email"
             :error="validator.personalData.email.$error"
+            :errorMessage="getErrorMessage('personalData.email')"
           />
 
           <TextInput
